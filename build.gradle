@@ -1,0 +1,153 @@
+buildscript {
+    ext {
+        springBootVersion                = '2.6.6'
+        awsS3Version                     = '2.2.5.RELEASE'
+        swaggerVersion                   = '2.7.0'
+        lombokVersion                    = '1.18.4'
+        mapstructVersion                 = '1.5.3.Final'
+        commonsIoVersion                 = '2.11.0'
+        apacheCommonsCollections4Version = '4.4'
+        apacheCommonsCompressVersion     = '1.21'
+        queryDslVersion                  = '5.0.0'
+        ehcacheVersion                   = '3.10.6'
+        cacheApiVersion                  = '1.1.1'
+        log4jdbcVersion                  = '1.16'
+        mybatisVersion                   = '2.1.1'
+        enversVersion                    = '2.6.4'
+        mybatisVersion                   = '2.2.2'
+        springSecurityOauth2Version      = '2.5.2.RELEASE'
+    }
+
+    repositories {
+        maven {
+            url "https://repo.maven.apache.org/maven2/"
+        }
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+        classpath "gradle.plugin.com.ewerk.gradle.plugins:querydsl-plugin:1.0.10"
+    }
+}
+
+plugins {
+    id 'java'
+    id 'war'
+}
+
+apply plugin: 'war'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+apply plugin: 'com.ewerk.gradle.plugins.querydsl'
+
+
+group = 'io.niceday'
+version = '1.0.0'
+sourceCompatibility = '11'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation          "org.springframework.boot:spring-boot-starter-data-jpa"
+    implementation          "org.springframework.boot:spring-boot-starter-cache"
+    implementation          "org.springframework.boot:spring-boot-starter-web"
+    implementation          "org.springframework.boot:spring-boot-starter-validation"
+    implementation          "org.springframework.data:spring-data-envers:${enversVersion}"
+
+    implementation          "org.springframework.boot:spring-boot-starter-security"
+//    implementation          "org.springframework.security.oauth:spring-security-oauth2:${springSecurityOauth2Version}"
+    implementation          "org.springframework.boot:spring-boot-starter-oauth2-client"
+
+
+//    implementation          "org.springframework.cloud:spring-cloud-starter-aws:${awsS3Version}"
+
+
+    implementation          "mysql:mysql-connector-java"
+    implementation          "org.bgee.log4jdbc-log4j2:log4jdbc-log4j2-jdbc4:${log4jdbcVersion}"
+    implementation          "org.mybatis.spring.boot:mybatis-spring-boot-starter:${mybatisVersion}"
+
+
+    implementation          "commons-io:commons-io:${commonsIoVersion}"
+    implementation          "org.apache.commons:commons-collections4:${apacheCommonsCollections4Version}"
+    implementation          "org.ehcache:ehcache:${ehcacheVersion}"
+    implementation          "javax.cache:cache-api:${cacheApiVersion}"
+    implementation          "org.apache.commons:commons-compress:${apacheCommonsCompressVersion}"
+    implementation          "org.apache.httpcomponents:httpclient"
+    implementation          "org.apache.commons:commons-lang3"
+    implementation          "org.apache.commons:commons-pool2"
+    implementation          "io.springfox:springfox-swagger2:${swaggerVersion}"
+    implementation          "io.springfox:springfox-swagger-ui:${swaggerVersion}"
+
+
+    implementation          "com.querydsl:querydsl-jpa:${queryDslVersion}"
+    implementation          "com.querydsl:querydsl-apt:${queryDslVersion}"
+    implementation          "com.querydsl:querydsl-core:${queryDslVersion}"
+
+
+    implementation          "org.mapstruct:mapstruct:${mapstructVersion}"
+    annotationProcessor     "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    implementation          "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor     "org.projectlombok:lombok:${lombokVersion}"
+    testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+    testImplementation      "org.springframework.restdocs:spring-restdocs-mockmvc"
+    testImplementation      "org.springframework.boot:spring-boot-starter-test"
+    testImplementation      "org.springframework.security:spring-security-test"
+}
+
+
+def queryDslDir = "$buildDir/generated/querydsl"
+
+querydsl {
+    jpa                = true
+    querydslSourcesDir = queryDslDir
+}
+
+sourceSets {
+    if (!project.hasProperty('profile') || !profile) {
+        ext.profile = 'default'
+    }
+    main {
+        java {
+            srcDirs queryDslDir
+        }
+        resources {
+            srcDirs "src/main/resources", "src/main/resources-${profile}"
+        }
+    }
+
+    main.java.srcDir queryDslDir
+}
+
+compileQuerydsl {
+    options.annotationProcessorPath = configurations.querydsl
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+    querydsl.extendsFrom compileClasspath
+}
+
+compileJava {
+    options.compilerArgs += ['-Amapstruct.defaultComponentModel=spring'   ]
+    options.compilerArgs += ['-Amapstruct.suppressGeneratorTimestamp=true']
+    options.compilerArgs += ['-Amapstruct.unmappedTargetPolicy=IGNORE'    ]
+}
+
+tasks {
+    processResources {
+        duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.INCLUDE
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+bootJar {
+    mainClass = 'io.niceday.BackendApplication'
+}
